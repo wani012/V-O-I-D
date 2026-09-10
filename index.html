@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full select-none">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>V O I D // Kinetic Canvas</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Matter.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <!-- Google Fonts: Space Grotesk & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            deepSpace: '#08080a',
+            hudBg: 'rgba(12, 12, 16, 0.75)',
+            accentCyan: '#00f0ff',
+            accentPink: '#ff007f',
+            accentViolet: '#8a2be2',
+            accentAmber: '#ffb700'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    * {
+      touch-action: manipulation;
+    }
+    html, body {
+      background-color: #08080a;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      color: #e2e8f0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    canvas {
+      display: block;
+      touch-action: none;
+      width: 100%;
+      height: 100%;
+    }
+    .glass-panel {
+      background: rgba(13, 13, 18, 0.78);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.04);
+    }
+    .glass-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-pill:hover, .glass-pill:active {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .glass-pill.active {
+      background: rgba(0, 240, 255, 0.14);
+      border-color: rgba(0, 240, 255, 0.5);
+      color: #00f0ff;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+    }
+    .toggle-switch {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+      transition: background 0.3s;
+      cursor: pointer;
+    }
+    .toggle-switch.active {
+      background: #00f0ff;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
+    }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      background: #ffffff;
+      border-radius: 9999px;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toggle-switch.active .toggle-thumb {
+      transform: translateX(18px);
+      background: #08080a;
+    }
+    /* Custom styled range slider */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      background: rgba(255, 255, 255, 0.1);
+      height: 4px;
+      border-radius: 9999px;
+      transition: all 0.2s;
+    }
+    input[type=range]:hover::-webkit-slider-runnable-track {
+      background: rgba(255, 255, 255, 0.18);
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -6px;
+      background: #00f0ff;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 2px #fff;
+      transition: transform 0.15s ease;
+    }
+    /* Hide scrollbars */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    .glow-dot {
+      position: relative;
+    }
+    .glow-dot::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 9999px;
+      background: inherit;
+      filter: blur(4px);
+      opacity: 0.7;
+    }
+    .slow-mo-vignette {
+      box-shadow: inset 0 0 100px rgba(0, 240, 255, 0.3), inset 0 0 180px rgba(0, 0, 0, 0.8);
+      background-color: #030306 !important;
+    }
+  </style>
+</head>
+<body id="app-body" class="h-full w-full relative overflow-hidden font-sans transition-all duration-300">
+
+  <!-- Interactive Canvas Layer -->
+  <canvas id="kinetic-canvas" class="absolute inset-0 w-full h-full z-0"></canvas>
+
+  <!-- Top Ambient Header / Status HUD -->
+  <header class="absolute top-0 left-0 right-0 p-3 sm:p-5 flex items-center justify-between pointer-events-none z-20">
+    <div class="flex items-center gap-2 sm:gap-3">
+      <div class="glass-panel rounded-xl px-3 sm:px-3.5 py-1.5 sm:py-2 flex items-center gap-2.5 pointer-events-auto">
+        <div class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-400 glow-dot animate-pulse"></div>
+        <span class="font-display font-bold tracking-[0.28em] text-xs sm:text-sm text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-cyan-400">V O I D</span>
+        <span class="text-[9px] sm:text-[10px] font-mono uppercase text-cyan-300/90 bg-cyan-950/70 px-1.5 py-0.5 rounded border border-cyan-500/30 tracking-widest">KINETIC</span>
+      </div>
+      <div class="hidden sm:flex items-center gap-2 glass-panel rounded-xl px-3 py-1.5 sm:py-2 text-xs font-mono text-white/60 pointer-events-auto">
+        <span>FPS: <span id="fps-display" class="text-white font-medium">60</span></span>
+      </div>
+    </div>
+
+    <!-- Quick Interactions: Lab Trigger & Audio -->
+    <div class="flex items-center gap-2 pointer-events-auto">
+      
+      <!-- Lab Experiments Trigger Button -->
+      <button id="open-lab-btn" class="relative group overflow-hidden rounded-xl px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold tracking-wide text-cyan-300 bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 hover:from-cyan-500/35 hover:via-blue-500/35 hover:to-purple-500/35 border border-cyan-400/50 shadow-[0_0_16px_rgba(0,240,255,0.25)] transition-all flex items-center gap-1.5 sm:gap-2 active:scale-95">
+        <span class="text-sm">⚡</span>
+        <span class="font-display font-medium text-[11px] sm:text-xs">LAB MODS</span>
+        <span class="text-[9px] font-mono uppercase px-1 rounded bg-cyan-400/20 text-cyan-200 hidden sm:inline">8</span>
+      </button>
+
+      <!-- Sound Toggle Pill -->
+      <button id="audio-toggle-btn" class="glass-panel hover:border-cyan-500/40 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center gap-1.5 text-xs font-medium text-white/80 transition active:scale-95">
+        <svg id="audio-icon-on" class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <svg id="audio-icon-off" class="w-4 h-4 text-white/40 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+
+      <!-- Quick Snapshot Button -->
+      <button id="quick-snapshot-btn" class="glass-panel hover:border-cyan-400 rounded-xl p-2 text-white/70 hover:text-cyan-400 transition hidden sm:block" title="Quick Screenshot (PNG)">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Bullet Time Hold Indicator Badge -->
+  <div id="bullet-time-indicator" class="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-none z-20 opacity-0 transition-all duration-300 scale-95">
+    <div class="glass-panel px-4 py-1.5 rounded-full text-xs font-mono tracking-widest flex items-center gap-2 border border-cyan-400/50 shadow-[0_0_20px_rgba(0,240,255,0.4)] text-cyan-300 bg-cyan-950/80">
+      <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+      <span>BULLET TIME // 0.1X SPEED</span>
+    </div>
+  </div>
+
+  <!-- Active Status / Mode Notification Banner -->
+  <div id="status-toast" class="absolute top-24 sm:top-20 left-1/2 -translate-x-1/2 pointer-events-none z-20 opacity-0 transition-opacity duration-300 max-w-[90vw]">
+    <div class="glass-panel px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-mono tracking-wider flex items-center gap-2 border border-cyan-500/40 shadow-lg text-center">
+      <span id="toast-icon" class="text-cyan-400">●</span>
+      <span id="toast-text" class="text-white/90 truncate">NOTIFICATION</span>
+    </div>
+  </div>
+
+  <!-- Bottom Floating Glassmorphism Controls HUD / Dock -->
+  <div class="absolute bottom-2 sm:bottom-5 left-0 right-0 px-2 sm:px-4 flex justify-center pointer-events-none z-30 pb-[env(safe-area-inset-bottom)]">
+    <nav class="glass-panel rounded-2xl p-2 sm:p-2.5 pointer-events-auto flex flex-wrap items-center gap-2 sm:gap-3 max-w-5xl w-full mx-auto justify-between transition-all duration-300 shadow-2xl">
+      
+      <!-- Group 1: Gravity Mode Selector -->
+      <div class="flex items-center gap-1 bg-white/[0.03] p-0.5 sm:p-1 rounded-xl border border-white/[0.05]">
+        <button data-gravity="zero" class="gravity-btn glass-pill active rounded-lg px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+          <span>Zero-G</span>
+        </button>
+        <button data-gravity="earth" class="gravity-btn glass-pill rounded-lg px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium text-white/70 hover:text-white flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400/60"></span>
+          <span>Earth</span>
+        </button>
+        <button data-gravity="inverted" class="gravity-btn glass-pill rounded-lg px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium text-white/70 hover:text-white flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-purple-400/60"></span>
+          <span>Invert</span>
+        </button>
+      </div>
+
+      <!-- Group 2: Force Field Mode Switch -->
+      <div class="flex items-center gap-1 bg-white/[0.03] p-0.5 sm:p-1 rounded-xl border border-white/[0.05]">
+        <button id="field-toggle-btn" class="glass-pill active rounded-lg px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-medium flex items-center gap-1.5 transition">
+          <span id="field-icon-indicator" class="text-xs">🧲</span>
+          <span id="field-mode-label" class="hidden xs:inline sm:inline">Attract</span>
+        </button>
+      </div>
+
+      <!-- Group 3: Chaos Slider (compact on mobile) -->
+      <div class="hidden md:flex items-center gap-2 px-2 py-1 flex-1 min-w-[120px] max-w-[170px]">
+        <div class="flex flex-col w-full">
+          <div class="flex justify-between text-[10px] font-mono tracking-wider text-white/60 mb-1">
+            <span>CHAOS</span>
+            <span id="chaos-val-display" class="text-cyan-400">45%</span>
+          </div>
+          <input id="chaos-slider" type="range" min="0" max="100" value="45" class="w-full h-1.5">
+        </div>
+      </div>
+
+      <!-- Group 4: Aesthetic Palette Selector -->
+      <div class="flex items-center gap-1 bg-white/[0.03] p-0.5 sm:p-1 rounded-xl border border-white/[0.05]">
+        <button data-palette="cyber" class="palette-btn glass-pill active rounded-lg px-2 py-1 text-[11px] font-medium flex items-center gap-1" title="Cyber">
+          <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-cyan-400 to-fuchsia-500"></span>
+          <span class="hidden sm:inline">Cyber</span>
+        </button>
+        <button data-palette="glass" class="palette-btn glass-pill rounded-lg px-2 py-1 text-[11px] font-medium text-white/70 hover:text-white flex items-center gap-1" title="Glass">
+          <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-white to-slate-400"></span>
+          <span class="hidden sm:inline">Glass</span>
+        </button>
+        <button data-palette="sunset" class="palette-btn glass-pill rounded-lg px-2 py-1 text-[11px] font-medium text-white/70 hover:text-white flex items-center gap-1" title="Sunset">
+          <span class="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-amber-400 to-rose-500"></span>
+          <span class="hidden sm:inline">Sunset</span>
+        </button>
+      </div>
+
+      <!-- Group 5: Explode & Respawn -->
+      <div class="flex items-center gap-1.5">
+        <button id="explode-btn" class="relative group overflow-hidden rounded-xl px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold tracking-wide text-white bg-gradient-to-r from-rose-500/25 to-amber-500/25 border border-rose-500/40 active:scale-95 transition-all flex items-center gap-1">
+          <span>💥</span>
+          <span class="hidden xs:inline">Explode</span>
+        </button>
+
+        <button id="respawn-btn" class="glass-pill rounded-xl p-1.5 text-white/70 hover:text-cyan-400 transition" title="Re-randomize">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+      </div>
+
+    </nav>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- EXPERIMENTAL QUANTUM LAB MODAL POPUP                         -->
+  <!-- ============================================================ -->
+  <div id="lab-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass-panel rounded-3xl p-5 sm:p-7 max-w-2xl w-full border border-cyan-500/30 shadow-[0_0_60px_rgba(0,240,255,0.15)] relative max-h-[85vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-white/10 pb-3 mb-5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 font-bold">
+            ⚡
+          </div>
+          <div>
+            <h2 class="font-display font-bold text-base sm:text-lg text-white tracking-wide flex items-center gap-2">
+              <span class="tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-white to-cyan-300">V O I D</span>
+              <span class="text-white/40">//</span>
+              <span>EXPERIMENTAL LAB</span>
+            </h2>
+            <p class="text-[10px] sm:text-xs text-white/50 font-mono">Cosmic kinetic anomalies, acoustic synthesis & gravitational fields</p>
+          </div>
+        </div>
+        <button id="close-lab-btn" class="glass-pill rounded-full p-2 text-white/60 hover:text-white transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Feature Cards Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        
+        <!-- CARD 1: Singularity / Black Hole -->
+        <div class="bg-white/[0.03] p-3.5 rounded-2xl border border-white/[0.07] flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🌌</span>
+              <div>
+                <h3 class="font-display font-semibold text-xs sm:text-sm text-white">Singularity (Black Hole)</h3>
+                <p class="text-[10px] text-white/50">Swirling event horizon pulling bodies with deep gravity.</p>
+              </div>
+            </div>
+            <div id="toggle-blackhole" class="toggle-switch flex-shrink-0">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 pt-2 border-t border-white/[0.05]">
+            <button id="center-blackhole-btn" class="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 hover:bg-cyan-900/50 px-2 py-0.5 rounded-lg border border-cyan-500/20">
+              Center Singularity
+            </button>
+            <span class="text-[9px] text-white/40 font-mono">Toggle in lab</span>
+          </div>
+        </div>
+
+        <!-- CARD 2: Kinetic Constellations -->
+        <div class="bg-white/[0.03] p-3.5 rounded-2xl border border-white/[0.07] flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">⚡</span>
+              <div>
+                <h3 class="font-display font-semibold text-xs sm:text-sm text-white">Kinetic Constellations</h3>
+                <p class="text-[10px] text-white/50">Glowing laser filaments between nearby objects.</p>
+              </div>
+            </div>
+            <div id="toggle-constellations" class="toggle-switch flex-shrink-0 active">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="text-[10px] text-white/40 font-mono pt-2 border-t border-white/[0.05]">
+            Neural Plexus filaments
+          </div>
+        </div>
+
+        <!-- CARD 3: Time Dilation (Bullet-Time) -->
+        <div class="bg-white/[0.03] p-3.5 rounded-2xl border border-white/[0.07] flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">⏳</span>
+              <div>
+                <h3 class="font-display font-semibold text-xs sm:text-sm text-white">Time Dilation (Bullet Time)</h3>
+                <p class="text-[10px] text-white/50">0.1x slow motion with space grid ripple. Hold Spacebar or screen long-press.</p>
+              </div>
+            </div>
+            <div id="toggle-slowmo" class="toggle-switch flex-shrink-0">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="text-[10px] text-cyan-300/80 font-mono pt-2 border-t border-white/[0.05]">
+            Hold [Spacebar] or screen long-press
+          </div>
+        </div>
+
+        <!-- CARD 4: Generative Audio Scale -->
+        <div class="bg-white/[0.03] p-3.5 rounded-2xl border border-white/[0.07] flex flex-col justify-between">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xl">🎹</span>
+            <div>
+              <h3 class="font-display font-semibold text-xs sm:text-sm text-white">Ambient Chimes Scale</h3>
+              <p class="text-[10px] text-white/50">Harmonious procedural bell chimes on collision.</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 pt-2 border-t border-white/[0.05]">
+            <button data-scale="pentatonic" class="scale-btn glass-pill active rounded-lg px-2 py-1 text-[10px] font-mono text-center">Pentatonic Chime</button>
+            <button data-scale="zen" class="scale-btn glass-pill rounded-lg px-2 py-1 text-[10px] font-mono text-white/70 text-center">Zen Bell</button>
+            <button data-scale="cyber" class="scale-btn glass-pill rounded-lg px-2 py-1 text-[10px] font-mono text-white/70 text-center">Cyber Bass</button>
+            <button data-scale="vapor" class="scale-btn glass-pill rounded-lg px-2 py-1 text-[10px] font-mono text-white/70 text-center">Vaporwave</button>
+          </div>
+        </div>
+
+        <!-- CARD 5: Energy Tethers & Springs -->
+        <div class="bg-white/[0.03] p-3.5 rounded-2xl border border-white/[0.07] flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🔗</span>
+              <div>
+                <h3 class="font-display font-semibold text-xs sm:text-sm text-white">Energy Spring Tethers</h3>
+                <p class="text-[10px] text-white/50">Bind bodies with elastic glowing springs.</p>
+              </div>
+            </div>
+            <div id="toggle-tether-mode" class="toggle-switch flex-shrink-0">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 pt-2 border-t border-white/[0.05]">
+            <button id="forge-random-tethers-btn" class="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 hover:bg-cyan-900/50 px-2 py-0.5 rounded-lg border border-cyan-500/20">
+              + Forge Chains
+            </button>
+            <button id="clear-all-tethers-btn" class="text-[10px] font-mono text-rose-400 bg-rose-950/40 hover:bg-rose-900/50 px-2 py-0.5 rounded-lg border border-rose-500/20">
+              ✂️ Sever All
+            </button>
+          </div>
+        </div>
+
+        <!-- CARD 6: Gyroscope / Device Tilt Gravity -->
+        <div class="bg-white/[0.03] p-3.5 rounded-2xl border border-white/[0.07] flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">📱</span>
+              <div>
+                <h3 class="font-display font-semibold text-xs sm:text-sm text-white">Phone Gyro Tilt Gravity</h3>
+                <p class="text-[10px] text-white/50">Tilt phone to control real-time physical gravity vector.</p>
+              </div>
+            </div>
+            <div id="toggle-gyro" class="toggle-switch flex-shrink-0">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="text-[10px] text-white/40 font-mono pt-2 border-t border-white/[0.05] flex items-center justify-between">
+            <span id="gyro-status-text">Device Sensor</span>
+            <button id="calibrate-gyro-btn" class="text-cyan-400 hover:underline">Calibrate</button>
+          </div>
+        </div>
+
+        <!-- CARD 7: Plasma Droplet Swarm -->
+        <div class="bg-white/[0.03] p-3.5 rounded-2xl border border-white/[0.07] flex flex-col justify-between">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xl">💧</span>
+            <div>
+              <h3 class="font-display font-semibold text-xs sm:text-sm text-white">Plasma Micro-Droplets</h3>
+              <p class="text-[10px] text-white/50">High-energy bouncy micro orbs.</p>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-white/[0.05]">
+            <button id="spawn-plasma-btn" class="w-full text-xs font-semibold text-cyan-300 bg-cyan-950/40 hover:bg-cyan-900/60 py-1.5 rounded-lg border border-cyan-500/30 transition flex items-center justify-center gap-2">
+              <span>+ Spawn 15 Plasma Droplets</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- CARD 8: 4K Wallpaper Capture -->
+        <div class="bg-white/[0.03] p-3.5 rounded-2xl border border-white/[0.07] flex flex-col justify-between">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xl">📸</span>
+            <div>
+              <h3 class="font-display font-semibold text-xs sm:text-sm text-white">Save Wallpaper</h3>
+              <p class="text-[10px] text-white/50">Export high-resolution PNG snapshot.</p>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-white/[0.05]">
+            <button id="export-wallpaper-btn" class="w-full text-xs font-semibold text-white bg-gradient-to-r from-purple-500/30 to-cyan-500/30 py-1.5 rounded-lg border border-cyan-400/40 transition">
+              Download PNG
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="mt-5 pt-3 border-t border-white/10 flex items-center justify-between gap-3 text-xs text-white/50 font-mono">
+        <span class="text-[11px] font-mono tracking-wider">V O I D // Kinetic Space Realm</span>
+        <button id="close-modal-footer-btn" class="glass-pill px-4 py-1 rounded-xl text-white hover:text-cyan-300 transition text-xs">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JavaScript Engine -->
+  <script>
+    (function () {
+      'use strict';
+
+      // --- COLOR THEMES & PALETTES ---
+      const PALETTES = {
+        cyber: {
+          name: 'Cyber Neon',
+          primary: '#00f0ff',
+          secondary: '#ff007f',
+          colors: [
+            { fill: 'rgba(0, 240, 255, 0.16)', stroke: '#00f0ff', glow: 'rgba(0, 240, 255, 0.8)' },
+            { fill: 'rgba(255, 0, 127, 0.16)', stroke: '#ff007f', glow: 'rgba(255, 0, 127, 0.8)' },
+            { fill: 'rgba(138, 43, 226, 0.16)', stroke: '#8a2be2', glow: 'rgba(138, 43, 226, 0.8)' },
+            { fill: 'rgba(57, 255, 20, 0.16)', stroke: '#39ff14', glow: 'rgba(57, 255, 20, 0.8)' },
+            { fill: 'rgba(255, 183, 0, 0.16)', stroke: '#ffb700', glow: 'rgba(255, 183, 0, 0.8)' }
+          ]
+        },
+        glass: {
+          name: 'Frosted Monochrome',
+          primary: '#ffffff',
+          secondary: '#94a3b8',
+          colors: [
+            { fill: 'rgba(255, 255, 255, 0.12)', stroke: '#ffffff', glow: 'rgba(255, 255, 255, 0.6)' },
+            { fill: 'rgba(203, 213, 225, 0.12)', stroke: '#cbd5e1', glow: 'rgba(203, 213, 225, 0.6)' },
+            { fill: 'rgba(148, 163, 184, 0.12)', stroke: '#94a3b8', glow: 'rgba(148, 163, 184, 0.5)' },
+            { fill: 'rgba(56, 189, 248, 0.14)', stroke: '#7dd3fc', glow: 'rgba(56, 189, 248, 0.6)' }
+          ]
+        },
+        sunset: {
+          name: 'Sunset Vaporwave',
+          primary: '#ff6b6b',
+          secondary: '#9b5de5',
+          colors: [
+            { fill: 'rgba(255, 107, 107, 0.16)', stroke: '#ff6b6b', glow: 'rgba(255, 107, 107, 0.8)' },
+            { fill: 'rgba(155, 93, 229, 0.16)', stroke: '#9b5de5', glow: 'rgba(155, 93, 229, 0.8)' },
+            { fill: 'rgba(241, 91, 181, 0.16)', stroke: '#f15bb5', glow: 'rgba(241, 91, 181, 0.8)' },
+            { fill: 'rgba(0, 187, 249, 0.16)', stroke: '#00bbf9', glow: 'rgba(0, 187, 249, 0.8)' }
+          ]
+        }
+      };
+
+      // Procedural Harmonic Chime Scales (Pentatonic Foundation)
+      const SCALES = {
+        pentatonic: [196.00, 220.00, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50],
+        zen: [196.00, 207.65, 261.63, 293.66, 311.13, 392.00, 415.30, 523.25, 587.33, 622.25, 783.99],
+        cyber: [130.81, 146.83, 155.56, 174.61, 196.00, 220.00, 261.63, 293.66, 311.13, 392.00, 523.25],
+        vapor: [174.61, 220.00, 261.63, 329.63, 349.23, 440.00, 523.25, 659.25, 698.46, 783.99, 880.00]
+      };
+
+      const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+      const state = {
+        palette: 'cyber',
+        gravityMode: 'zero',
+        fieldMode: 'attract',
+        fieldRadius: isMobile ? 180 : 280,
+        fieldStrength: 0.0016,
+        chaos: 0.45,
+        audioEnabled: true,
+        soundMode: 'pentatonic',
+        mousePos: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+        mouseIsDown: false,
+        draggedBody: null,
+        dragStartPos: { x: 0, y: 0 },
+        dragCurrentPos: { x: 0, y: 0 },
+        isSlingshotting: false,
+        fps: 60,
+        lastTime: performance.now(),
+        frameCount: 0,
+        totalBodiesTarget: isMobile ? 26 : 42,
+        
+        blackHole: {
+          active: false,
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+          radius: 34,
+          mass: 2.2,
+          rot: 0
+        },
+        constellations: true,
+        timeDilation: false, // 0.1x Bullet Time
+        tetherMode: false,
+        tetherFirstBody: null,
+        gyroEnabled: false,
+        gyroGravity: { x: 0, y: 0 }
+      };
+
+      const canvas = document.getElementById('kinetic-canvas');
+      const ctx = canvas.getContext('2d');
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      // --- FEATURE 1: PROCEDURAL AMBIENT CHIMES (WEB AUDIO API) ---
+      let audioCtx = null;
+      function initAudio() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+      }
+
+      let lastChimeTime = 0;
+      function playCollisionSound(intensity, bodyRadius) {
+        if (!state.audioEnabled || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        if (now - lastChimeTime < 0.024) return; // Smooth chime polyphony throttle
+        lastChimeTime = now;
+
+        try {
+          // Primary fundamental oscillator (pure, soothing sine wave bell)
+          const oscPrimary = audioCtx.createOscillator();
+          const gainPrimary = audioCtx.createGain();
+
+          // Harmonic overtone oscillator (acoustic chime resonance)
+          const oscHarmonic = audioCtx.createOscillator();
+          const gainHarmonic = audioCtx.createGain();
+
+          const activeScale = SCALES[state.soundMode] || SCALES.pentatonic;
+          const sizeIndex = Math.max(0, Math.min(activeScale.length - 1, Math.floor((65 - (bodyRadius || 24)) / 3.8)));
+          let basePitch = activeScale[sizeIndex] || 440;
+
+          // Subtle pitch adjustment according to collision velocity
+          const velPitchFactor = 1.0 + Math.min(0.12, (intensity || 1) * 0.015);
+          let pitch = basePitch * velPitchFactor;
+
+          if (state.timeDilation) {
+            pitch *= 0.5; // Deep resonant octave drop during Bullet Time
+          }
+
+          oscPrimary.type = 'sine';
+          oscPrimary.frequency.setValueAtTime(pitch, now);
+
+          // Harmonic overtone at bell ratio ~2.76x
+          oscHarmonic.type = 'sine';
+          oscHarmonic.frequency.setValueAtTime(pitch * 2.76, now);
+
+          // Volume & duration dynamically mapped to velocity
+          const duration = state.timeDilation ? 0.65 : (0.24 + Math.min(0.4, (intensity || 1) * 0.05));
+          const vol = Math.min(0.24, Math.max(0.025, (intensity || 1) * 0.034));
+
+          // Gentle bell envelope: instant micro-attack (3ms) to avoid clicking, then exponential decay
+          gainPrimary.gain.setValueAtTime(0.0001, now);
+          gainPrimary.gain.exponentialRampToValueAtTime(vol, now + 0.003);
+          gainPrimary.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+          gainHarmonic.gain.setValueAtTime(0.0001, now);
+          gainHarmonic.gain.exponentialRampToValueAtTime(vol * 0.3, now + 0.003);
+          gainHarmonic.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.65);
+
+          oscPrimary.connect(gainPrimary);
+          gainPrimary.connect(audioCtx.destination);
+
+          oscHarmonic.connect(gainHarmonic);
+          gainHarmonic.connect(audioCtx.destination);
+
+          oscPrimary.start(now);
+          oscHarmonic.start(now);
+
+          oscPrimary.stop(now + duration + 0.02);
+          oscHarmonic.stop(now + duration + 0.02);
+        } catch (e) {}
+      }
+
+      // Kinetic Blast Sound (Sub-bass drop + resonant sweep)
+      function playBlastSound() {
+        if (!state.audioEnabled || !audioCtx) return;
+        try {
+          const now = audioCtx.currentTime;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(170, now);
+          osc.frequency.exponentialRampToValueAtTime(32, now + 0.4);
+
+          gain.gain.setValueAtTime(0.32, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.4);
+        } catch (e) {}
+      }
+
+      function playExplosionSound() {
+        if (!state.audioEnabled || !audioCtx) return;
+        try {
+          const now = audioCtx.currentTime;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(35, now + 0.45);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        } catch (e) {}
+      }
+
+      // Matter.js Setup
+      const Engine = Matter.Engine,
+            World = Matter.World,
+            Bodies = Matter.Bodies,
+            Body = Matter.Body,
+            Constraint = Matter.Constraint,
+            Events = Matter.Events,
+            Vector = Matter.Vector;
+
+      const engine = Engine.create({
+        gravity: { x: 0, y: 0, scale: 0.001 }
+      });
+      const world = engine.world;
+
+      let visualBodies = [];
+      let boundaryWalls = [];
+      let activeConstraints = [];
+      let ripples = [];
+      let particles = [];
+      let stars = [];
+
+      function initStarfield() {
+        stars = [];
+        const count = Math.floor((width * height) / 14000);
+        for (let i = 0; i < count; i++) {
+          stars.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            radius: Math.random() * 1.5 + 0.3,
+            baseAlpha: Math.random() * 0.5 + 0.15,
+            pulseSpeed: Math.random() * 0.02 + 0.005,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+      }
+
+      function updateBoundaries() {
+        boundaryWalls.forEach(wall => World.remove(world, wall));
+        boundaryWalls = [];
+
+        const thickness = 100;
+        const options = { isStatic: true, restitution: 0.9, friction: 0.05, label: 'BoundaryWall' };
+
+        const top = Bodies.rectangle(width / 2, -thickness / 2, width * 2, thickness, options);
+        const bottom = Bodies.rectangle(width / 2, height + thickness / 2, width * 2, thickness, options);
+        const left = Bodies.rectangle(-thickness / 2, height / 2, thickness, height * 2, options);
+        const right = Bodies.rectangle(width + thickness / 2, height / 2, thickness, height * 2, options);
+
+        boundaryWalls = [top, bottom, left, right];
+        World.add(world, boundaryWalls);
+      }
+
+      function createKineticBody(x, y, shapeType, isPlasma = false) {
+        const colorPalette = PALETTES[state.palette].colors;
+        const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+        let body;
+        let visualData = {
+          type: shapeType,
+          color: color,
+          radius: 22,
+          glowIntensity: 1,
+          driftAngle: Math.random() * Math.PI * 2,
+          driftSpeed: Math.random() * 0.4 + 0.2,
+          trailTimer: 0,
+          isPlasma: isPlasma
+        };
+
+        const currentRestitution = isPlasma ? 0.95 : (0.5 + state.chaos * 0.45);
+        const scaleMult = isMobile ? 0.82 : 1.0;
+
+        if (shapeType === 'circle') {
+          const r = (isPlasma ? (10 + Math.random() * 5) : (18 + Math.random() * 22)) * scaleMult;
+          body = Bodies.circle(x, y, r, {
+            restitution: currentRestitution,
+            frictionAir: isPlasma ? 0.001 : 0.002,
+            friction: 0.05,
+            density: isPlasma ? 0.001 : 0.002
+          });
+          visualData.radius = r;
+        } else if (shapeType === 'ring') {
+          const sides = [3, 5, 6][Math.floor(Math.random() * 3)];
+          const r = (22 + Math.random() * 18) * scaleMult;
+          body = Bodies.polygon(x, y, sides, r, {
+            restitution: currentRestitution,
+            frictionAir: 0.0025,
+            friction: 0.08,
+            density: 0.002
+          });
+          visualData.sides = sides;
+          visualData.radius = r;
+        } else if (shapeType === 'pill') {
+          const pillWidth = (45 + Math.random() * 30) * scaleMult;
+          const pillHeight = (22 + Math.random() * 8) * scaleMult;
+          body = Bodies.rectangle(x, y, pillWidth, pillHeight, {
+            chamfer: { radius: pillHeight / 2 },
+            restitution: currentRestitution,
+            frictionAir: 0.003,
+            friction: 0.1,
+            density: 0.0025
+          });
+          visualData.width = pillWidth;
+          visualData.height = pillHeight;
+          visualData.radius = Math.max(pillWidth, pillHeight) / 2;
+        } else if (shapeType === 'diamond') {
+          const r = (20 + Math.random() * 16) * scaleMult;
+          body = Bodies.polygon(x, y, 4, r, {
+            restitution: currentRestitution,
+            frictionAir: 0.002,
+            friction: 0.06,
+            density: 0.002
+          });
+          visualData.radius = r;
+          visualData.sides = 4;
+        }
+
+        const initVelocity = Vector.rotate({ x: Math.random() * 1.5 + 0.3, y: 0 }, Math.random() * Math.PI * 2);
+        Body.setVelocity(body, initVelocity);
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.02);
+
+        body.customVisual = visualData;
+        return body;
+      }
+
+      function spawnWorldBodies() {
+        activeConstraints.forEach(c => World.remove(world, c));
+        activeConstraints = [];
+        visualBodies.forEach(b => World.remove(world, b));
+        visualBodies = [];
+
+        const shapes = ['circle', 'ring', 'pill', 'diamond'];
+        const padding = isMobile ? 40 : 80;
+
+        for (let i = 0; i < state.totalBodiesTarget; i++) {
+          const x = padding + Math.random() * (width - padding * 2);
+          const y = padding + Math.random() * (height - padding * 2 - 90);
+          const shape = shapes[i % shapes.length];
+          const b = createKineticBody(x, y, shape);
+          visualBodies.push(b);
+          World.add(world, b);
+        }
+      }
+
+      function spawnPlasmaDroplets(count = 12) {
+        initAudio();
+        for (let i = 0; i < count; i++) {
+          const x = width / 2 + (Math.random() - 0.5) * 150;
+          const y = height / 2 + (Math.random() - 0.5) * 150;
+          const b = createKineticBody(x, y, 'circle', true);
+          visualBodies.push(b);
+          World.add(world, b);
+        }
+        showToast('💧 Spawned 12 Plasma Droplets', '#00f0ff');
+        playCollisionSound(3, 15);
+      }
+
+      function showToast(text, iconColor = '#00f0ff') {
+        const toast = document.getElementById('status-toast');
+        const toastText = document.getElementById('toast-text');
+        const toastIcon = document.getElementById('toast-icon');
+
+        toastText.textContent = text;
+        toastIcon.style.color = iconColor;
+
+        toast.classList.remove('opacity-0');
+        toast.classList.add('opacity-100');
+        clearTimeout(toast._timeout);
+        toast._timeout = setTimeout(() => {
+          toast.classList.remove('opacity-100');
+          toast.classList.add('opacity-0');
+        }, 1500);
+      }
+
+      // --- FEATURE 1 IMPLEMENTATION: COLLISION LISTENER WITH CHIMES ---
+      Events.on(engine, 'collisionStart', function (event) {
+        const pairs = event.pairs;
+        for (let i = 0; i < pairs.length; i++) {
+          const pair = pairs[i];
+          const bodyA = pair.bodyA;
+          const bodyB = pair.bodyB;
+
+          // Ignore static wall colliding with another static wall
+          if (bodyA.isStatic && bodyB.isStatic) continue;
+
+          const velA = bodyA.velocity || { x: 0, y: 0 };
+          const velB = bodyB.velocity || { x: 0, y: 0 };
+          const relVel = Math.hypot(velA.x - velB.x, velA.y - velB.y);
+
+          // Trigger soothing chime even on gentle touches (relVel > 0.32)
+          if (relVel > 0.32) {
+            let cx = (bodyA.position.x + bodyB.position.x) / 2;
+            let cy = (bodyA.position.y + bodyB.position.y) / 2;
+
+            if (pair.collision && pair.collision.supports && pair.collision.supports.length > 0) {
+              cx = pair.collision.supports[0].x;
+              cy = pair.collision.supports[0].y;
+            }
+
+            const activePalette = PALETTES[state.palette];
+            const rippleColor = (bodyA.customVisual && bodyA.customVisual.color.stroke) ||
+                                (bodyB.customVisual && bodyB.customVisual.color.stroke) ||
+                                activePalette.primary;
+
+            // Visual impact ripple
+            ripples.push({
+              x: cx,
+              y: cy,
+              radius: 4,
+              maxRadius: Math.min(75, 14 + relVel * 8),
+              alpha: Math.min(0.85, 0.2 + relVel * 0.12),
+              color: rippleColor,
+              lineWidth: Math.min(2.5, 1 + relVel * 0.25)
+            });
+
+            // Play procedural ambient chime (adjusts with velocity & body mass/radius)
+            const avgRadius = ((bodyA.customVisual?.radius || 24) + (bodyB.customVisual?.radius || 24)) / 2;
+            playCollisionSound(relVel, avgRadius);
+
+            // Small stardust spark burst for noticeable collisions
+            if (relVel > 0.9) {
+              const sparkCount = Math.min(6, Math.floor(relVel * 1.3));
+              for (let s = 0; s < sparkCount; s++) {
+                const angle = Math.random() * Math.PI * 2;
+                const spd = Math.random() * relVel * 1.1 + 0.4;
+                particles.push({
+                  x: cx,
+                  y: cy,
+                  vx: Math.cos(angle) * spd,
+                  vy: Math.sin(angle) * spd,
+                  radius: Math.random() * 1.6 + 0.8,
+                  alpha: 0.9,
+                  color: rippleColor,
+                  decay: 0.025
+                });
+              }
+            }
+          }
+        }
+      });
+
+      // --- FEATURE 2 IMPLEMENTATION: SHOCKWAVE / KINETIC BLAST ---
+      function triggerShockwave(cx, cy) {
+        initAudio();
+        playBlastSound();
+
+        const blastRadius = isMobile ? 240 : 300;
+
+        // Visual Neon Shockwave Rings (Cyan & Magenta glowing halo)
+        ripples.push({
+          x: cx,
+          y: cy,
+          radius: 8,
+          maxRadius: blastRadius,
+          alpha: 1.0,
+          color: '#00f0ff',
+          lineWidth: 4.5
+        });
+        ripples.push({
+          x: cx,
+          y: cy,
+          radius: 4,
+          maxRadius: blastRadius * 0.72,
+          alpha: 0.9,
+          color: '#ff007f',
+          lineWidth: 3.0
+        });
+
+        // Radiating Kinetic Spark Particles
+        const sparkCount = isMobile ? 18 : 28;
+        for (let i = 0; i < sparkCount; i++) {
+          const angle = (i * Math.PI * 2) / sparkCount + (Math.random() - 0.5) * 0.3;
+          const spd = Math.random() * 9 + 4;
+          const col = i % 2 === 0 ? '#00f0ff' : '#ff007f';
+          particles.push({
+            x: cx,
+            y: cy,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd,
+            radius: Math.random() * 2.2 + 1.2,
+            alpha: 1.0,
+            color: col,
+            decay: 0.028
+          });
+        }
+
+        // Explosive repulsion impulse force on all physics bodies within radius
+        for (let i = 0; i < visualBodies.length; i++) {
+          const body = visualBodies[i];
+          const dx = body.position.x - cx;
+          const dy = body.position.y - cy;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist < blastRadius && dist > 1) {
+            const falloff = 1 - (dist / blastRadius);
+            const impulseMag = (0.028 + state.chaos * 0.032) * falloff * body.mass;
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            Body.applyForce(body, body.position, {
+              x: nx * impulseMag,
+              y: ny * impulseMag
+            });
+            Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.3);
+          }
+        }
+
+        showToast('💥 KINETIC BLAST', '#ff007f');
+      }
+
+      function triggerExplosion(originX, originY) {
+        initAudio();
+        playExplosionSound();
+
+        const cx = originX !== undefined ? originX : width / 2;
+        const cy = originY !== undefined ? originY : height / 2;
+        const activePalette = PALETTES[state.palette];
+
+        ripples.push({
+          x: cx,
+          y: cy,
+          radius: 10,
+          maxRadius: Math.max(width, height) * 0.6,
+          alpha: 1,
+          color: '#ffffff',
+          lineWidth: 3.5
+        });
+
+        for (let i = 0; i < (isMobile ? 40 : 75); i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const spd = Math.random() * 10 + 2.5;
+          const col = activePalette.colors[Math.floor(Math.random() * activePalette.colors.length)].stroke;
+          particles.push({
+            x: cx,
+            y: cy,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd,
+            radius: Math.random() * 2.5 + 1,
+            alpha: 1,
+            color: col,
+            decay: 0.02
+          });
+        }
+
+        visualBodies.forEach(b => {
+          const dx = b.position.x - cx;
+          const dy = b.position.y - cy;
+          const dist = Math.hypot(dx, dy) || 1;
+          const forceMag = Math.min(0.1, (220 / (dist + 40)) * (0.04 + state.chaos * 0.06));
+          Body.applyForce(b, b.position, {
+            x: (dx / dist) * forceMag,
+            y: (dy / dist) * forceMag
+          });
+          Body.setAngularVelocity(b, (Math.random() - 0.5) * 0.15);
+        });
+      }
+
+      // --- FEATURE 3: TIME-DILATION / BULLET TIME (0.1X) CONTROLLER ---
+      function setBulletTime(active) {
+        if (state.timeDilation === active) return;
+        state.timeDilation = active;
+        const appBody = document.getElementById('app-body');
+        const btIndicator = document.getElementById('bullet-time-indicator');
+        const toggleSlowMo = document.getElementById('toggle-slowmo');
+
+        if (active) {
+          initAudio();
+          appBody.classList.add('slow-mo-vignette');
+          if (btIndicator) {
+            btIndicator.classList.remove('opacity-0', 'scale-95');
+            btIndicator.classList.add('opacity-100', 'scale-100');
+          }
+          if (toggleSlowMo) toggleSlowMo.classList.add('active');
+          playCollisionSound(1.4, 50);
+        } else {
+          appBody.classList.remove('slow-mo-vignette');
+          if (btIndicator) {
+            btIndicator.classList.remove('opacity-100', 'scale-100');
+            btIndicator.classList.add('opacity-0', 'scale-95');
+          }
+          if (toggleSlowMo) toggleSlowMo.classList.remove('active');
+        }
+      }
+
+      function applyPhysicsForces(time) {
+        if (state.gyroEnabled) {
+          engine.gravity.x = state.gyroGravity.x;
+          engine.gravity.y = state.gyroGravity.y;
+          engine.gravity.scale = 0.001;
+        } else if (state.gravityMode === 'earth') {
+          engine.gravity.x = 0;
+          engine.gravity.y = 1.0;
+          engine.gravity.scale = 0.001;
+        } else if (state.gravityMode === 'inverted') {
+          engine.gravity.x = 0;
+          engine.gravity.y = -1.0;
+          engine.gravity.scale = 0.001;
+        } else {
+          engine.gravity.x = 0;
+          engine.gravity.y = 0;
+          engine.gravity.scale = 0.001;
+        }
+
+        const chaosFactor = state.chaos;
+        const bh = state.blackHole;
+        if (bh.active) {
+          bh.rot += state.timeDilation ? 0.005 : 0.035;
+        }
+
+        for (let i = 0; i < visualBodies.length; i++) {
+          const body = visualBodies[i];
+          const visual = body.customVisual;
+          if (!visual) continue;
+
+          if (state.gravityMode === 'zero' && !state.gyroEnabled) {
+            const t = time * 0.0015;
+            const driftMag = (0.00004 + chaosFactor * 0.00008) * body.mass;
+            const fx = Math.cos(t * visual.driftSpeed + visual.driftAngle) * driftMag;
+            const fy = Math.sin(t * visual.driftSpeed + visual.driftAngle) * driftMag;
+            Body.applyForce(body, body.position, { x: fx, y: fy });
+          }
+
+          if (bh.active) {
+            const bx = bh.x - body.position.x;
+            const by = bh.y - body.position.y;
+            const bDist = Math.hypot(bx, by);
+            if (bDist > 15) {
+              const pullMag = (0.003 * bh.mass * body.mass) / Math.max(40, bDist * 0.4);
+              Body.applyForce(body, body.position, {
+                x: (bx / bDist) * pullMag - (by / bDist) * pullMag * 0.4,
+                y: (by / bDist) * pullMag + (bx / bDist) * pullMag * 0.4
+              });
+            }
+          }
+
+          const spd = Math.hypot(body.velocity.x, body.velocity.y);
+          visual.trailTimer += spd;
+          if (visual.trailTimer > (state.timeDilation ? 8 : 20)) {
+            visual.trailTimer = 0;
+            particles.push({
+              x: body.position.x,
+              y: body.position.y,
+              vx: -body.velocity.x * 0.12,
+              vy: -body.velocity.y * 0.12,
+              radius: Math.random() * 1.8 + 0.8,
+              alpha: Math.min(0.6, 0.2 + spd * 0.08),
+              color: visual.color.stroke,
+              decay: state.timeDilation ? 0.006 : 0.025
+            });
+          }
+
+          // Mouse / Touch Force Field
+          if (state.mouseIsDown) {
+            const mX = state.mousePos.x;
+            const mY = state.mousePos.y;
+            const dx = mX - body.position.x;
+            const dy = mY - body.position.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < state.fieldRadius && body !== state.draggedBody) {
+              const normalizedDist = Math.max(25, dist);
+              const falloff = 1 - dist / state.fieldRadius;
+              let fieldForce = (state.fieldStrength * (0.5 + chaosFactor * 0.8) * falloff) / (normalizedDist * 0.035);
+              fieldForce = Math.min(0.004, fieldForce);
+
+              const dir = state.fieldMode === 'attract' ? 1 : -1;
+              Body.applyForce(body, body.position, {
+                x: (dx / dist) * dir * fieldForce,
+                y: (dy / dist) * dir * fieldForce
+              });
+            }
+          }
+        }
+      }
+
+      function getCanvasCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        };
+      }
+
+      function findBodyUnderCursor(pos) {
+        const bodies = Matter.Query.point(visualBodies, pos);
+        return bodies.length > 0 ? bodies[0] : null;
+      }
+
+      function onPointerStart(pos, isRightClick = false) {
+        initAudio();
+        state.mousePos = pos;
+        state.mouseIsDown = true;
+
+        // Right-click triggers Shockwave / Kinetic Blast!
+        if (isRightClick) {
+          triggerShockwave(pos.x, pos.y);
+          return;
+        }
+
+        const hitBody = findBodyUnderCursor(pos);
+
+        if (state.tetherMode) {
+          if (hitBody) {
+            if (!state.tetherFirstBody) {
+              state.tetherFirstBody = hitBody;
+              showToast('🔗 Tap second body to link', '#00f0ff');
+              playCollisionSound(2, 20);
+            } else if (state.tetherFirstBody !== hitBody) {
+              const c = Constraint.create({
+                bodyA: state.tetherFirstBody,
+                bodyB: hitBody,
+                stiffness: 0.04,
+                damping: 0.05,
+                render: { visible: false }
+              });
+              World.add(world, c);
+              activeConstraints.push(c);
+              showToast('⚡ Tether Forged!', '#39ff14');
+              playCollisionSound(3, 30);
+              state.tetherFirstBody = null;
+            }
+          }
+          return;
+        }
+
+        if (hitBody) {
+          state.draggedBody = hitBody;
+          state.isSlingshotting = true;
+          state.dragStartPos = { x: hitBody.position.x, y: hitBody.position.y };
+          state.dragCurrentPos = pos;
+          Body.setVelocity(hitBody, { x: 0, y: 0 });
+        } else {
+          ripples.push({
+            x: pos.x,
+            y: pos.y,
+            radius: 5,
+            maxRadius: 60,
+            alpha: 0.8,
+            color: state.fieldMode === 'attract' ? PALETTES[state.palette].primary : PALETTES[state.palette].secondary,
+            lineWidth: 2.2
+          });
+          playCollisionSound(2.5, 30);
+        }
+      }
+
+      function onPointerEnd() {
+        state.mouseIsDown = false;
+
+        if (state.isSlingshotting && state.draggedBody) {
+          const body = state.draggedBody;
+          const dx = state.dragStartPos.x - state.dragCurrentPos.x;
+          const dy = state.dragStartPos.y - state.dragCurrentPos.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist > 5) {
+            const slingPower = Math.min(26, dist * 0.14);
+            const angle = Math.atan2(dy, dx);
+            Body.setVelocity(body, {
+              x: Math.cos(angle) * slingPower,
+              y: Math.sin(angle) * slingPower
+            });
+            Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2);
+
+            for (let i = 0; i < 14; i++) {
+              const a = angle + (Math.random() - 0.5) * 0.8;
+              const spd = Math.random() * slingPower * 0.5 + 2;
+              particles.push({
+                x: body.position.x,
+                y: body.position.y,
+                vx: Math.cos(a) * spd,
+                vy: Math.sin(a) * spd,
+                radius: Math.random() * 2 + 1,
+                alpha: 1,
+                color: body.customVisual?.color.stroke || '#00f0ff',
+                decay: 0.03
+              });
+            }
+            playCollisionSound(slingPower * 0.6, 20);
+          }
+
+          state.isSlingshotting = false;
+          state.draggedBody = null;
+        }
+      }
+
+      // Mouse Listeners
+      window.addEventListener('mousemove', function (e) {
+        const pos = getCanvasCoords(e);
+        state.mousePos = pos;
+        if (state.isSlingshotting && state.draggedBody) {
+          state.dragCurrentPos = pos;
+        }
+      });
+
+      canvas.addEventListener('mousedown', function (e) {
+        onPointerStart(getCanvasCoords(e), e.button === 2);
+      });
+      window.addEventListener('mouseup', onPointerEnd);
+
+      // Right-Click Context Menu triggers Shockwave Blast
+      canvas.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        const pos = getCanvasCoords(e);
+        triggerShockwave(pos.x, pos.y);
+      });
+
+      // Desktop Double-Click triggers Shockwave Blast
+      canvas.addEventListener('dblclick', function (e) {
+        e.preventDefault();
+        const pos = getCanvasCoords(e);
+        triggerShockwave(pos.x, pos.y);
+      });
+
+      // Mobile Touch Handling (with Double-Tap & Long-Press Bullet Time)
+      let lastTapTime = 0;
+      let lastTapPos = { x: 0, y: 0 };
+      let longPressTimer = null;
+      let touchMoved = false;
+
+      canvas.addEventListener('touchstart', function (e) {
+        if (e.touches.length > 0) {
+          e.preventDefault();
+          const t = e.touches[0];
+          const pos = getCanvasCoords(t);
+          const now = Date.now();
+          touchMoved = false;
+
+          // Double-Tap on Mobile -> Trigger Kinetic Blast!
+          const distFromLast = Math.hypot(pos.x - lastTapPos.x, pos.y - lastTapPos.y);
+          if (now - lastTapTime < 340 && distFromLast < 45) {
+            clearTimeout(longPressTimer);
+            triggerShockwave(pos.x, pos.y);
+            lastTapTime = 0;
+            return;
+          }
+          lastTapTime = now;
+          lastTapPos = pos;
+
+          // Long-Press Hold on Screen -> Enter Bullet Time (0.1x)!
+          clearTimeout(longPressTimer);
+          longPressTimer = setTimeout(() => {
+            if (!touchMoved) {
+              setBulletTime(true);
+            }
+          }, 320);
+
+          onPointerStart(pos, false);
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('touchmove', function (e) {
+        if (e.touches.length > 0) {
+          e.preventDefault();
+          const t = e.touches[0];
+          const pos = getCanvasCoords(t);
+          state.mousePos = pos;
+
+          const distMoved = Math.hypot(pos.x - lastTapPos.x, pos.y - lastTapPos.y);
+          if (distMoved > 10) {
+            touchMoved = true;
+            clearTimeout(longPressTimer);
+          }
+
+          if (state.isSlingshotting && state.draggedBody) {
+            state.dragCurrentPos = pos;
+          }
+        }
+      }, { passive: false });
+
+      window.addEventListener('touchend', function () {
+        clearTimeout(longPressTimer);
+        // Release bullet-time if held by touch
+        if (state.timeDilation) {
+          setBulletTime(false);
+        }
+        onPointerEnd();
+      });
+
+      window.addEventListener('touchcancel', function () {
+        clearTimeout(longPressTimer);
+        if (state.timeDilation) {
+          setBulletTime(false);
+        }
+        onPointerEnd();
+      });
+
+      // --- KEYBOARD LISTENERS: SPACEBAR BULLET-TIME HOLD & SHORTCUTS ---
+      window.addEventListener('keydown', function (e) {
+        if (e.target.tagName === 'INPUT') return;
+
+        // Spacebar Press & Hold: Time Dilation 0.1x Bullet Time
+        if (e.code === 'Space' && !e.repeat) {
+          e.preventDefault();
+          setBulletTime(true);
+        } else if (e.key === 'b' || e.key === 'B') {
+          const tb = document.getElementById('toggle-blackhole');
+          if (tb) tb.click();
+        } else if (e.key === 'c' || e.key === 'C') {
+          const tc = document.getElementById('toggle-constellations');
+          if (tc) tc.click();
+        } else if (e.key === 't' || e.key === 'T') {
+          const tt = document.getElementById('toggle-tether-mode');
+          if (tt) tt.click();
+        } else if (e.key === 'Escape') {
+          closeLabModal();
+        }
+      });
+
+      window.addEventListener('keyup', function (e) {
+        if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+          e.preventDefault();
+          // Release Spacebar -> Speed back to 1.0!
+          setBulletTime(false);
+        }
+      });
+
+      // --- RENDERERS ---
+      // Sleek Holographic Grid & Warp Rings during Bullet Time
+      function renderBulletTimeGrid(time) {
+        ctx.save();
+        const cx = width / 2;
+        const cy = height / 2;
+        const pulse = Math.sin(time * 0.003);
+
+        // Holographic Concentric Grid Rings
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 1.0;
+        const maxR = Math.hypot(cx, cy);
+
+        for (let r = 80; r < maxR; r += 90) {
+          const waveR = r + pulse * 12;
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.07)';
+          ctx.beginPath();
+          ctx.arc(cx, cy, waveR, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Perspective Coordinate Grid Lines
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+        const gridSize = 60;
+        ctx.beginPath();
+        for (let x = 0; x < width; x += gridSize) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+        }
+        for (let y = 0; y < height; y += gridSize) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+        }
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function renderBlackHole() {
+        const bh = state.blackHole;
+        if (!bh.active) return;
+
+        ctx.save();
+        ctx.translate(bh.x, bh.y);
+
+        const rGrad = ctx.createRadialGradient(0, 0, bh.radius * 0.4, 0, 0, bh.radius * 2.5);
+        rGrad.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        rGrad.addColorStop(0.35, 'rgba(255, 0, 127, 0.7)');
+        rGrad.addColorStop(0.7, 'rgba(0, 240, 255, 0.25)');
+        rGrad.addColorStop(1, 'rgba(8, 8, 12, 0)');
+
+        ctx.fillStyle = rGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, bh.radius * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.rotate(bh.rot);
+        for (let ring = 1; ring <= 2; ring++) {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, bh.radius * (1.1 + ring * 0.3), bh.radius * (0.6 + ring * 0.2), ring * 0.5, 0, Math.PI * 2);
+          ctx.strokeStyle = ring % 2 === 0 ? 'rgba(0, 240, 255, 0.75)' : 'rgba(255, 0, 127, 0.85)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = '#020204';
+        ctx.beginPath();
+        ctx.arc(0, 0, bh.radius * 0.85, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function renderConstellations() {
+        if (!state.constellations) return;
+        const maxDist = isMobile ? 120 : 145;
+        const maxDistSq = maxDist * maxDist;
+        const len = visualBodies.length;
+
+        ctx.save();
+        for (let i = 0; i < len; i++) {
+          const b1 = visualBodies[i];
+          const p1 = b1.position;
+
+          for (let j = i + 1; j < len; j++) {
+            const b2 = visualBodies[j];
+            const p2 = b2.position;
+
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < maxDistSq) {
+              const dist = Math.sqrt(distSq);
+              const alpha = (1 - dist / maxDist) * 0.4;
+
+              ctx.strokeStyle = b1.customVisual?.color.stroke || '#00f0ff';
+              ctx.globalAlpha = alpha;
+              ctx.lineWidth = 1.0 * (1 - dist / maxDist);
+
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.stroke();
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      function renderTethers(time) {
+        if (activeConstraints.length === 0 && !state.tetherFirstBody) return;
+
+        ctx.save();
+        ctx.strokeStyle = '#39ff14';
+        ctx.lineWidth = 2;
+
+        activeConstraints.forEach(c => {
+          const p1 = c.bodyA.position;
+          const p2 = c.bodyB.position;
+
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          const segments = 6;
+          const dx = (p2.x - p1.x) / segments;
+          const dy = (p2.y - p1.y) / segments;
+
+          for (let s = 1; s < segments; s++) {
+            const jitter = Math.sin(time * 0.02 + s) * 3;
+            ctx.lineTo(p1.x + dx * s + jitter, p1.y + dy * s - jitter);
+          }
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        });
+
+        if (state.tetherFirstBody) {
+          const p1 = state.tetherFirstBody.position;
+          const p2 = state.mousePos;
+          ctx.strokeStyle = '#00f0ff';
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function renderCustomBody(body) {
+        const visual = body.customVisual;
+        if (!visual) return;
+
+        const pos = body.position;
+        const angle = body.angle;
+        const color = visual.color;
+
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate(angle);
+
+        ctx.shadowColor = color.glow;
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 1.8;
+        ctx.strokeStyle = color.stroke;
+        ctx.fillStyle = color.fill;
+
+        if (visual.type === 'circle') {
+          const r = visual.radius;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          ctx.beginPath();
+          ctx.arc(0, 0, r - 3, -Math.PI * 0.65, -Math.PI * 0.1);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+
+        } else if (visual.type === 'ring') {
+          const sides = visual.sides || 6;
+          const r = visual.radius;
+          ctx.beginPath();
+          for (let s = 0; s < sides; s++) {
+            const a = (s * 2 * Math.PI) / sides;
+            const px = Math.cos(a) * r;
+            const py = Math.sin(a) * r;
+            if (s === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+        } else if (visual.type === 'pill') {
+          const w = visual.width;
+          const h = visual.height;
+          ctx.beginPath();
+          ctx.roundRect(-w / 2, -h / 2, w, h, h / 2);
+          ctx.fill();
+          ctx.stroke();
+
+        } else if (visual.type === 'diamond') {
+          const r = visual.radius;
+          ctx.beginPath();
+          ctx.moveTo(0, -r);
+          ctx.lineTo(r, 0);
+          ctx.lineTo(0, r);
+          ctx.lineTo(-r, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function renderSlingshotTether() {
+        if (!state.isSlingshotting || !state.draggedBody) return;
+
+        const body = state.draggedBody;
+        const start = state.dragStartPos;
+        const cur = state.dragCurrentPos;
+        const dx = start.x - cur.x;
+        const dy = start.y - cur.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 4) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.8)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+
+          ctx.beginPath();
+          ctx.moveTo(cur.x, cur.y);
+          ctx.lineTo(body.position.x, body.position.y);
+          ctx.stroke();
+
+          const aimAngle = Math.atan2(dy, dx);
+          const aimLen = Math.min(100, dist * 1.4);
+          const endX = body.position.x + Math.cos(aimAngle) * aimLen;
+          const endY = body.position.y + Math.sin(aimAngle) * aimLen;
+
+          ctx.setLineDash([]);
+          ctx.strokeStyle = 'rgba(255, 0, 127, 0.7)';
+          ctx.lineWidth = 2.5;
+
+          ctx.beginPath();
+          ctx.moveTo(body.position.x, body.position.y);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(endX, endY, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#ff007f';
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      function renderStarfield(time) {
+        ctx.save();
+        for (let i = 0; i < stars.length; i++) {
+          const star = stars[i];
+          const pulse = Math.sin(time * star.pulseSpeed + star.phase);
+          const alpha = star.baseAlpha + pulse * 0.15;
+          ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.05, alpha)})`;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function renderRipples() {
+        for (let i = ripples.length - 1; i >= 0; i--) {
+          const r = ripples[i];
+          r.radius += (r.maxRadius - r.radius) * 0.12 + 1.2;
+          r.alpha -= 0.022;
+
+          if (r.alpha <= 0 || r.radius >= r.maxRadius) {
+            ripples.splice(i, 1);
+            continue;
+          }
+
+          ctx.save();
+          ctx.strokeStyle = r.color;
+          ctx.globalAlpha = Math.max(0, r.alpha);
+          ctx.lineWidth = r.lineWidth;
+
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      function renderParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.96;
+          p.vy *= 0.96;
+          p.alpha -= p.decay;
+
+          if (p.alpha <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+
+          ctx.save();
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // --- MAIN ANIMATION & PHYSICS TICK (60FPS) ---
+      function tick(currentTime) {
+        requestAnimationFrame(tick);
+
+        state.frameCount++;
+        if (currentTime - state.lastTime >= 500) {
+          state.fps = Math.round((state.frameCount * 1000) / (currentTime - state.lastTime));
+          const fpsEl = document.getElementById('fps-display');
+          if (fpsEl) fpsEl.textContent = state.fps;
+          state.frameCount = 0;
+          state.lastTime = currentTime;
+        }
+
+        applyPhysicsForces(currentTime);
+
+        // Time Dilation: 0.1x Bullet Time Physics step
+        const timeStep = (1000 / 60) * (state.timeDilation ? 0.1 : 1.0);
+        Engine.update(engine, timeStep);
+
+        // Clear canvas (Deep dark contrast when Bullet Time is active)
+        ctx.fillStyle = state.timeDilation ? '#030306' : '#08080a';
+        ctx.fillRect(0, 0, width, height);
+
+        // Render Holographic Space Grid during Bullet Time
+        if (state.timeDilation) {
+          renderBulletTimeGrid(currentTime);
+        }
+
+        renderStarfield(currentTime);
+        renderBlackHole();
+        renderConstellations();
+        renderTethers(currentTime);
+        renderParticles();
+        renderRipples();
+
+        for (let i = 0; i < visualBodies.length; i++) {
+          renderCustomBody(visualBodies[i]);
+        }
+
+        renderSlingshotTether();
+      }
+
+      function handleResize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
+
+        updateBoundaries();
+        initStarfield();
+      }
+
+      window.addEventListener('resize', handleResize);
+
+      function exportWallpaper() {
+        initAudio();
+        const imageURL = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.download = `void-kinetic-${Date.now()}.png`;
+        downloadLink.href = imageURL;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        showToast('📸 Wallpaper Saved!', '#39ff14');
+      }
+
+      // Lab Modal
+      const labModal = document.getElementById('lab-modal');
+      function openLabModal() {
+        initAudio();
+        labModal.classList.remove('opacity-0', 'pointer-events-none');
+        labModal.classList.add('opacity-100');
+      }
+      function closeLabModal() {
+        labModal.classList.remove('opacity-100');
+        labModal.classList.add('opacity-0', 'pointer-events-none');
+      }
+
+      document.getElementById('open-lab-btn').addEventListener('click', openLabModal);
+      document.getElementById('close-lab-btn').addEventListener('click', closeLabModal);
+      document.getElementById('close-modal-footer-btn').addEventListener('click', closeLabModal);
+      labModal.addEventListener('click', function (e) {
+        if (e.target === labModal) closeLabModal();
+      });
+
+      // Lab Toggles
+      const toggleBh = document.getElementById('toggle-blackhole');
+      toggleBh.addEventListener('click', function () {
+        initAudio();
+        state.blackHole.active = !state.blackHole.active;
+        if (state.blackHole.active) {
+          toggleBh.classList.add('active');
+          showToast('🌌 Singularity Online', '#ff007f');
+          playCollisionSound(3, 60);
+        } else {
+          toggleBh.classList.remove('active');
+          showToast('🌌 Singularity Offline', '#94a3b8');
+        }
+      });
+
+      document.getElementById('center-blackhole-btn').addEventListener('click', function () {
+        state.blackHole.x = width / 2;
+        state.blackHole.y = height / 2;
+        state.blackHole.active = true;
+        toggleBh.classList.add('active');
+        showToast('🌌 Centered Singularity', '#00f0ff');
+      });
+
+      const toggleConst = document.getElementById('toggle-constellations');
+      function toggleConstellationsState() {
+        initAudio();
+        state.constellations = !state.constellations;
+        if (state.constellations) {
+          toggleConst.classList.add('active');
+          showToast('⚡ Constellations Active', '#00f0ff');
+        } else {
+          toggleConst.classList.remove('active');
+          showToast('⚡ Constellations Off', '#94a3b8');
+        }
+      }
+      toggleConst.addEventListener('click', toggleConstellationsState);
+
+      const toggleSlowMo = document.getElementById('toggle-slowmo');
+      toggleSlowMo.addEventListener('click', function () {
+        setBulletTime(!state.timeDilation);
+      });
+
+      document.querySelectorAll('.scale-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+          initAudio();
+          document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          state.soundMode = this.dataset.scale;
+          showToast(`Scale: ${this.textContent}`, '#00f0ff');
+          playCollisionSound(2.5, 30);
+        });
+      });
+
+      const toggleTether = document.getElementById('toggle-tether-mode');
+      toggleTether.addEventListener('click', function () {
+        initAudio();
+        state.tetherMode = !state.tetherMode;
+        state.tetherFirstBody = null;
+        if (state.tetherMode) {
+          toggleTether.classList.add('active');
+          showToast('🔗 Tap 2 bodies to link', '#39ff14');
+        } else {
+          toggleTether.classList.remove('active');
+          showToast('🔗 Tether Disabled', '#94a3b8');
+        }
+      });
+
+      document.getElementById('forge-random-tethers-btn').addEventListener('click', function () {
+        initAudio();
+        if (visualBodies.length < 2) return;
+        for (let k = 0; k < 3; k++) {
+          const b1 = visualBodies[Math.floor(Math.random() * visualBodies.length)];
+          const b2 = visualBodies[Math.floor(Math.random() * visualBodies.length)];
+          if (b1 !== b2) {
+            const c = Constraint.create({
+              bodyA: b1,
+              bodyB: b2,
+              stiffness: 0.035,
+              damping: 0.06,
+              render: { visible: false }
+            });
+            World.add(world, c);
+            activeConstraints.push(c);
+          }
+        }
+        showToast('⚡ Forged Energy Chains', '#39ff14');
+        playCollisionSound(3, 25);
+      });
+
+      document.getElementById('clear-all-tethers-btn').addEventListener('click', function () {
+        initAudio();
+        activeConstraints.forEach(c => World.remove(world, c));
+        activeConstraints = [];
+        state.tetherFirstBody = null;
+        showToast('✂️ All Tethers Cut', '#ff007f');
+      });
+
+      // Gyroscope
+      const toggleGyro = document.getElementById('toggle-gyro');
+      const gyroStatusText = document.getElementById('gyro-status-text');
+
+      function handleOrientation(e) {
+        if (!state.gyroEnabled) return;
+        const gamma = e.gamma || 0;
+        const beta = e.beta || 0;
+        state.gyroGravity.x = Math.max(-1.5, Math.min(1.5, gamma / 30));
+        state.gyroGravity.y = Math.max(-1.5, Math.min(1.5, (beta - 40) / 30));
+      }
+
+      toggleGyro.addEventListener('click', async function () {
+        initAudio();
+        if (!state.gyroEnabled) {
+          if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+              const permission = await DeviceOrientationEvent.requestPermission();
+              if (permission !== 'granted') {
+                showToast('❌ Gyro Permission Denied', '#ff007f');
+                return;
+              }
+            } catch (err) {}
+          }
+          window.addEventListener('deviceorientation', handleOrientation);
+          state.gyroEnabled = true;
+          toggleGyro.classList.add('active');
+          gyroStatusText.textContent = 'Active: Tilt phone';
+          showToast('📱 Phone Tilt Gravity ON', '#39ff14');
+        } else {
+          window.removeEventListener('deviceorientation', handleOrientation);
+          state.gyroEnabled = false;
+          toggleGyro.classList.remove('active');
+          gyroStatusText.textContent = 'Sensor Off';
+          showToast('📱 Gyroscope Off', '#94a3b8');
+        }
+      });
+
+      document.getElementById('calibrate-gyro-btn').addEventListener('click', function () {
+        state.gyroGravity.x = 0;
+        state.gyroGravity.y = 0;
+        showToast('📱 Neutral Zero-G Calibrated', '#00f0ff');
+      });
+
+      document.getElementById('spawn-plasma-btn').addEventListener('click', function () {
+        spawnPlasmaDroplets(12);
+      });
+
+      document.getElementById('export-wallpaper-btn').addEventListener('click', exportWallpaper);
+      document.getElementById('quick-snapshot-btn').addEventListener('click', exportWallpaper);
+
+      function toggleFieldMode() {
+        state.fieldMode = state.fieldMode === 'attract' ? 'repel' : 'attract';
+        const isAttract = state.fieldMode === 'attract';
+        const label = document.getElementById('field-mode-label');
+        const btn = document.getElementById('field-toggle-btn');
+        const icon = document.getElementById('field-icon-indicator');
+
+        if (isAttract) {
+          label.textContent = 'Attract';
+          icon.textContent = '🧲';
+          btn.classList.add('active');
+          showToast('ATTRACTOR MODE (Pull)', '#00f0ff');
+        } else {
+          label.textContent = 'Repel';
+          icon.textContent = '💥';
+          btn.classList.remove('active');
+          showToast('REPULSOR MODE (Push)', '#ff007f');
+        }
+        playCollisionSound(1.5, 30);
+      }
+
+      document.getElementById('field-toggle-btn').addEventListener('click', toggleFieldMode);
+
+      document.querySelectorAll('.gravity-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+          initAudio();
+          document.querySelectorAll('.gravity-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          state.gravityMode = this.dataset.gravity;
+          state.gyroEnabled = false;
+          toggleGyro.classList.remove('active');
+          playCollisionSound(2, 35);
+          showToast(`Gravity: ${this.textContent.trim()}`, '#00f0ff');
+        });
+      });
+
+      document.querySelectorAll('.palette-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+          initAudio();
+          document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          state.palette = this.dataset.palette;
+
+          const paletteColors = PALETTES[state.palette].colors;
+          visualBodies.forEach((b, idx) => {
+            if (b.customVisual) {
+              b.customVisual.color = paletteColors[idx % paletteColors.length];
+            }
+          });
+
+          playCollisionSound(2.2, 40);
+        });
+      });
+
+      const chaosSlider = document.getElementById('chaos-slider');
+      const chaosDisplay = document.getElementById('chaos-val-display');
+      chaosSlider.addEventListener('input', function (e) {
+        state.chaos = parseInt(e.target.value, 10) / 100;
+        chaosDisplay.textContent = e.target.value + '%';
+        const newRestitution = 0.5 + state.chaos * 0.45;
+        visualBodies.forEach(b => {
+          b.restitution = b.customVisual?.isPlasma ? 0.98 : newRestitution;
+        });
+      });
+
+      document.getElementById('explode-btn').addEventListener('click', function () {
+        triggerExplosion();
+      });
+
+      document.getElementById('respawn-btn').addEventListener('click', function () {
+        initAudio();
+        spawnWorldBodies();
+        triggerExplosion(width / 2, height / 2);
+      });
+
+      const audioBtn = document.getElementById('audio-toggle-btn');
+      const audioIconOn = document.getElementById('audio-icon-on');
+      const audioIconOff = document.getElementById('audio-icon-off');
+
+      audioBtn.addEventListener('click', function () {
+        state.audioEnabled = !state.audioEnabled;
+        if (state.audioEnabled) {
+          initAudio();
+          audioIconOn.classList.remove('hidden');
+          audioIconOff.classList.add('hidden');
+          playCollisionSound(3, 20);
+          showToast('Audio ON', '#00f0ff');
+        } else {
+          audioIconOn.classList.add('hidden');
+          audioIconOff.classList.remove('hidden');
+          showToast('MUTED', '#94a3b8');
+        }
+      });
+
+      window.addEventListener('pointerdown', function () {
+        initAudio();
+      }, { once: true });
+
+      // Startup
+      handleResize();
+      spawnWorldBodies();
+      requestAnimationFrame(tick);
+
+    })();
+  </script>
+</body>
+</html>
